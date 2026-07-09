@@ -1,3 +1,2 @@
-from logger import logger
-log = logger("main")
-log.info("hello")
+from transport import open_connection
+open_connection()

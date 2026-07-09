@@ -2,9 +2,9 @@ import config
 import os
 import logging
 from datetime import datetime
-os.makedirs(config.dirs, exist_ok=True)
+os.makedirs(config.log_dir, exist_ok=True)
 _formatter = logging.Formatter("[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s")
-_file_name = f"{config.dirs}/mavlink_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+_file_name = f"{config.log_dir}/mavlink_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 _console_handler = logging.StreamHandler()
 _console_handler.setLevel(logging.INFO)
 _console_handler.setFormatter(_formatter)
