@@ -1,4 +1,5 @@
 import config
+import time
 from logger import logger
 from pymavlink import mavutil
 log = logger("transport")
@@ -49,17 +50,23 @@ def open_connection(target:str="fc"):
         log.error(f"连接失败:{e}")
         return None
     log.info(f"等待心跳,超时时间:{config.heartbeat_timeout}")
-    if conn.wait_heartbeat(timeout=config.heartbeat_timeout):
-        if(conn.target_system==config.fc_target_system and conn.target_component==config.fc_target_component):
-            log.info("飞控已连接")
-            return conn
-        elif(conn.target_system==config.ser_target_system and conn.target_component==config.ser_target_component):
-            log.info("服务器已连接")
-            return conn
-        else:
-            log.error(f"未知连接{conn.target_system},{conn.target_component}")
+    tstart = time.time()
+    while True:
+        if time.time() - tstart > config.heartbeat_timeout:
+            log.error("心跳超时,无响应")
+            conn.close()
             return None
+        m = conn.recv_msg()
+        if m is not None and m.get_type() == 'HEARTBEAT':
+            conn.target_system = m.get_srcSystem()
+            conn.target_component = m.get_srcComponent()
+            break
+    if(conn.target_system==config.fc_target_system and conn.target_component==config.fc_target_component):
+        log.info("飞控已连接")
+        return conn
+    elif(conn.target_system==config.ser_target_system and conn.target_component==config.ser_target_component):
+        log.info("服务器已连接")
+        return conn
     else:
-        log.error("心跳超时,无响应")
-        conn.close()
+        log.error(f"未知连接{conn.target_system},{conn.target_component}")
         return None
