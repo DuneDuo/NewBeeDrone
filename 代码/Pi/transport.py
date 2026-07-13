@@ -26,7 +26,7 @@ def open_connection(target:str="fc"):
                                             source_component=config.ras_component_id,
                                             dialect=config.dialect,
                                             autoreconnect=True,
-                                            retries=5)
+                                            retries=3,udp_timeout=1.0)
             
         elif connection_type == "tcp":
             conn = mavutil.mavlink_connection(f"tcp:{tcp_address}",
@@ -34,7 +34,7 @@ def open_connection(target:str="fc"):
                                             source_component=config.ras_component_id,
                                             dialect=config.dialect,
                                             autoreconnect=True,
-                                            retries=5)
+                                            retries=3)
         elif connection_type == "serial":
             conn = mavutil.mavlink_connection(serial_port,
                                             baud=serial_baudrate,
@@ -42,7 +42,7 @@ def open_connection(target:str="fc"):
                                             source_component=config.ras_component_id,
                                             dialect=config.dialect,
                                             autoreconnect=True,
-                                            retries=5)
+                                            retries=3)
         else:
             log.error(f"不支持的连接方式:{connection_type}")
             return None

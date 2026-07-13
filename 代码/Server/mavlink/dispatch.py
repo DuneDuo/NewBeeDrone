@@ -1,4 +1,4 @@
-from logger import logger
+from .logger import logger
 log = logger("dispatch")
 _handlers = {}
 def register(msg_type):
