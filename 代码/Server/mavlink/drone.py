@@ -4,14 +4,14 @@ import threading
 from . import config
 from .logger import logger
 from .dispatch import dispatch
-from pymavlink.dialects.v20.ardupilotmega import (
+from .models import Sensor,Attitude,Position,GPS
+from pymavlink.dialects.v20.common import (
     MAVLink,
     MAV_TYPE_GCS,
     MAV_AUTOPILOT_GENERIC,
     MAV_STATE_ACTIVE,
 )
 log = logger("drone")
-
 class Drone:
     registry:dict[int,'Drone'] = {}
     @classmethod
@@ -46,6 +46,31 @@ class Drone:
         self.addr:tuple[str,int] = addr
         self.running = False
         self.last_heartbeat = None
+        # 飞控状态
+        self.armed = None
+        self.flight_mode = None
+        self.sys_status = None
+        self.time_boot = None
+        # 飞行姿态
+        self.attitude = Attitude()
+        # 位置
+        self.position = Position()
+        # GPS
+        self.gps = GPS()
+        # 电池
+        self.battery_remaining = None
+        self.battery_voltage = None
+        # CPU负载
+        self.cpu_load = None
+        # 传感器
+        self.sensor = Sensor()
+        # 任务
+        self.current_waypoint = None
+        # 待确认的指令 {command_id: callback}
+        self.pending_commands = {}
+        # 断开时间
+        self.disconnected_at = None
+
     def receive_loop(self):
         self.running = True
         self.last_heartbeat = time.time()
@@ -69,6 +94,19 @@ class Drone:
                 for msg in msg_set:
                     if msg.get_type() == "HEARTBEAT":
                         self.sys_id = msg.get_srcSystem()
+                        # 检查是否是断连恢复
+                        old = Drone.registry.get(self.sys_id)
+                        if old and old is not self:
+                            new_conn  = self.conn
+                            new_addr  = self.addr
+                            new_mav   = self.mav
+                            self.__dict__ = old.__dict__.copy()
+                            self.conn  = new_conn
+                            self.addr  = new_addr
+                            self.mav   = new_mav
+                            self.running = True
+                            old.conn = None
+                            log.info(f"无人机重连:sys_id={self.sys_id}")
                         self.last_heartbeat = time.time()
                         Drone.registry[self.sys_id] = self
                         log.info(f"无人机注册:sys_id={self.sys_id},addr={self.addr}")
@@ -152,6 +190,7 @@ class Drone:
             )
         buf = msg.pack(self.mav)
         self._send(buf)
+        log.info(f"发送指令: command={command_id}, drone={self.sys_id}")
     def param_request_read(self,param_id:bytes):
         if self.sys_id is None:
             log.error(f"无人机未注册,无法读取参数:{param_id}")
@@ -164,7 +203,7 @@ class Drone:
         )
         buf = msg.pack(self.mav)
         self._send(buf)
-
+        
     def param_set(self, param_id:bytes, param_value, param_type=9):
         if self.sys_id is None:
             log.error(f"无人机未注册,无法设置参数:{param_id}")
@@ -184,9 +223,10 @@ class Drone:
             return
         log.info(f"关闭连接:drone_id={self.sys_id}")
         self.running = False
+        self.disconnected_at = time.time()
         if self.conn:
             try:
                 self.conn.close()
             except Exception:
                 pass
-        Drone.registry.pop(self.sys_id, None)
+        # Drone.registry.pop(self.sys_id, None)

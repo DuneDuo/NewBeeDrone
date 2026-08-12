@@ -62,6 +62,35 @@ fc1.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_QUADROTOR,
 time.sleep(0.5)
 check("heartbeat updates timestamp", Drone.registry[1].last_heartbeat > before)
 
+# ── heartbeat handler ────────────────────────────────
+print("\n--- heartbeat handler ---")
+
+# 已解锁  base_mode=209 (128+64+16+1: armed+manual+stabilize+custom)
+fc1.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_QUADROTOR,
+                       mavutil.mavlink.MAV_AUTOPILOT_ARDUPILOTMEGA,
+                       209, 4, mavutil.mavlink.MAV_STATE_ACTIVE)
+time.sleep(0.3)
+check("armed detected", Drone.registry[1].armed is True)
+check("flight_mode == 4 (GUIDED)", Drone.registry[1].flight_mode == 4)
+check("sys_status == 4 (ACTIVE)", Drone.registry[1].sys_status == 4)
+
+# 未解锁  base_mode=81 (64+16+1: manual+stabilize+custom, no armed)
+fc1.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_QUADROTOR,
+                       mavutil.mavlink.MAV_AUTOPILOT_ARDUPILOTMEGA,
+                       81, 3, mavutil.mavlink.MAV_STATE_STANDBY)
+time.sleep(0.3)
+check("disarmed detected", Drone.registry[1].armed is False)
+check("flight_mode == 3 (AUTO)", Drone.registry[1].flight_mode == 3)
+check("sys_status == 3 (STANDBY)", Drone.registry[1].sys_status == 3)
+
+# 紧急状态
+fc1.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_QUADROTOR,
+                       mavutil.mavlink.MAV_AUTOPILOT_ARDUPILOTMEGA,
+                       209, 6, mavutil.mavlink.MAV_STATE_CRITICAL)
+time.sleep(0.3)
+check("armed stays True", Drone.registry[1].armed is True)
+check("sys_status == 5 (CRITICAL)", Drone.registry[1].sys_status == 5)
+
 # ─────────────────────────────────────────────────────
 print("\n" + "=" * 60)
 print("2. Command Long (send from server to FC)")

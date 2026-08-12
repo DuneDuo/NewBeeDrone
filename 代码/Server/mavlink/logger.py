@@ -14,6 +14,7 @@ _file_handler.setFormatter(_formatter)
 def logger(name:str):
     log = logging.getLogger(name)
     log.setLevel(logging.DEBUG)
-    log.addHandler(_console_handler)
-    log.addHandler(_file_handler)
+    if not log.handlers:
+        log.addHandler(_console_handler)
+        log.addHandler(_file_handler)
     return log

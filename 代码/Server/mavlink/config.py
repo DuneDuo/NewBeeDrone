@@ -10,3 +10,4 @@ ser_target_system = 255 #服务器的sys_id
 ser_target_component = 190 #服务器的com_id
 #日志#status_collector
 log_dir = "logs" #日志目录
+debug_msg = True
