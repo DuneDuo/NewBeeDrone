@@ -35,6 +35,7 @@ def open_connection(target:str="fc"):
                                             dialect=config.dialect,
                                             autoreconnect=True,
                                             retries=3)
+            conn.port.settimeout(0.1)
         elif connection_type == "serial":
             conn = mavutil.mavlink_connection(serial_port,
                                             baud=serial_baudrate,
@@ -43,6 +44,7 @@ def open_connection(target:str="fc"):
                                             dialect=config.dialect,
                                             autoreconnect=True,
                                             retries=3)
+            conn.port.timeout = 0.1
         else:
             log.error(f"不支持的连接方式:{connection_type}")
             return None

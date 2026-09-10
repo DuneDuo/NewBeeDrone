@@ -49,3 +49,6 @@ def SYSTEM_TIME_HANDLER(drone,msg:MAVLink_message):
 @register("EXTENDED_SYS_STATE")
 def EXTENDED_SYS_STATE_HANDLER(drone, msg:MAVLink_message):
     drone.state.update_from_extended_sys_state(msg)
+@register("STATUSTEXT")
+def STATUSTEXT_HANDLER(drone,msg:MAVLink_message):
+    drone.status_text.update(msg)

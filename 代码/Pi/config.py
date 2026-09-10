@@ -8,7 +8,7 @@ fc_tcp_address = "8.152.207.82:5760" #tcp监听地址
     #服务器
 ser_connection_type = "tcp" #连接方式tcp
 ser_udp_address = "127.0.0.1:14552"  #暂时不用
-ser_tcp_address = "39.97.240.213:57600" #mock服务器地址
+ser_tcp_address = "182.92.227.3:57600" #服务器地址
 #心跳检测#heart
 heartbeat_timeout = 3.0 #超时时间
 watch_dog_interval = 1.0 #检查间隔

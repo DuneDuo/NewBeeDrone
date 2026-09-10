@@ -3,6 +3,7 @@ import config
 import time
 import threading
 import json
+from datetime import datetime
 from collections import deque
 from logger import logger
 from .commandspec import (loadspec,ON_ACK,ON_FINAL_ACK,ON_TELEMETRY)
@@ -15,7 +16,7 @@ from pymavlink.dialects.v20.common import (
     MAV_RESULT_UNSUPPORTED,
     MAV_RESULT_FAILED,
 )
-_RESUILT_FAILURE = {
+_RESULT_FAILURE = {
     MAV_RESULT_DENIED: (ERROR_DENIED,"飞控拒绝该指令"),
     MAV_RESULT_UNSUPPORTED: (ERROR_UNSPPORTED,"飞控不支持该指令"),
     MAV_RESULT_FAILED: (ERROR_FAILED,"执行失败")
@@ -52,19 +53,26 @@ class CommandManager:
         log.info(f"创建命令:{spec.name}")
         return command
     def _run(self,spec,*args):
+        self._check_spec(spec)
         c = self._build(spec,*args)
         return self._send(c,spec)
+    def _check_spec(self,spec):
+        if spec.completion == ON_TELEMETRY and spec.complete is None:
+            raise ValueError(f"命令{spec.name}:completion=ON_TELEMETRY 但没写complete谓词")
+        if not spec.idempotent and spec.effect is None:
+            raise ValueError(f"命令 {spec.name}:idempotent=false 但没写 effect 谓词")
     def _build(self,spec,*args):
         kw = dict(zip(spec.signature,args))
         p = {i:0.0 for i in range(1,8)}
-        for slot,src in spec.params:
+        for slot,src in spec.params.items():
             p[slot] = kw[src] if isinstance(src,str) else src
         return Command(name = spec.name,cmd = spec.cmd,params= p)
     def _send_cmd(self,c):
         p=c.params
-        if c.form == "long":
+        spec = self.specs[c.name]
+        if spec.form == "long":
             self.drone.send_command_long(c.cmd,p[1],p[2],p[3],p[4],p[5],p[6],p[7])
-        elif c.form == "int":
+        elif spec.form == "int":
             self.drone.send_command_int(c.cmd,p[1],p[2],p[3],p[4],p[5],p[6],p[7])
     def _send(self,c,spec):
         with self.lock:
@@ -78,7 +86,7 @@ class CommandManager:
         self._record(c,"已发送")
         c.done_event.wait(timeout = spec.timeout + config.cmd_first_ack_timeout*(spec.max_retry+1))
         if c.state == FAIL:
-            raise Command(c,c.detail or c.error)
+            raise CommandFailure(c,c.detail or c.error)
         return c.result
     def on_ack(self,msg):
         with self.lock:
@@ -107,7 +115,7 @@ class CommandManager:
             c.state = DONE
             self._move_to_complete(c,"完成")
             return
-        error,detail = _RESUILT_FAILURE.get(result,(ERROR_FAILED,f"执行失败,飞控返回 result = {result}"))
+        error,detail = _RESULT_FAILURE.get(result,(ERROR_FAILED,f"执行失败,飞控返回 result = {result}"))
         if param2:
             detail = f"{detail}(code={param2})"
         c.state = FAIL
@@ -120,7 +128,9 @@ class CommandManager:
         if c.done_event:
             c.done_event.set()
     def _record(self,c,detail):
-        log.info(f"[drone_id={self.drone.sys_id}][run_id={c.run_id}] {c.name} {c.state} << {detail} params={c.params}")
+        spec = self.specs[c.name]
+        used = {k: c.params.get(k) for k in spec.params}
+        log.info(f"[drone_id={self.drone.sys_id}][run_id={c.run_id}] {c.name} {c.state} << {detail} params={used}")
         if c.state in (DONE,FAIL):
             self._append(c)
     def _append(self,c):
@@ -138,11 +148,13 @@ class CommandManager:
             "result": c.result,
             "error": c.error,
             "retry_count": c.retry_count,
-            "started_at": c.started_at,
-            "sent_at": c.sent_at,
-            "done_at": c.done_at,
+            "started_at": self._ts(c.started_at),
+            "sent_at": self._ts(c.sent_at),
+            "done_at": self._ts(c.done_at),
             "detail" : c.detail
         }
+    def _ts(self,ts):
+        return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S.%f") if ts else None
     def _abort(self,c,error,detail):
         c.error = error
         c.detail = detail

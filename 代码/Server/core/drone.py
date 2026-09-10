@@ -5,7 +5,7 @@ import math
 import config
 from logger import logger
 from mavlink.dispatch import dispatch
-from mavlink.models import Sensor,Attitude,Position,GPS,Mission,VFR,Connection,Battery,ParamOp,FlightState
+from mavlink.models import Sensor,Attitude,Position,GPS,Mission,VFR,Connection,Battery,ParamOp,FlightState,StatusText
 from pymavlink.dialects.v20.common import (
     MAVLink,
     MAV_TYPE_GCS,
@@ -76,11 +76,13 @@ class Drone:
         self.swap_done = threading.Event()
         # 发送锁
         self.send_lock = threading.Lock()
+        # 飞控日志
+        self.status_text = StatusText(self)
 
 
     def receive_loop(self):
         self.running = True
-
+        threading.Thread(target=self.heartbeat_loop, daemon=True).start()
         #阶段一,获取心跳包
         while self.running and self.sys_id is None:
             try:
@@ -113,7 +115,7 @@ class Drone:
         if not self.running or self.sys_id is None:
             return
         threading.Thread(target=self.watch_dog,daemon=True).start()
-        threading.Thread(target=self.heartbeat_loop, daemon=True).start()
+
         threading.Thread(target=self.cmd.tick_loop, daemon=True).start()
         threading.Thread(target=self.ping_loop, daemon=True).start()
         #阶段二,处理信息
@@ -296,6 +298,7 @@ class Drone:
         log.info(f"关闭连接:drone_id={self.sys_id}")
         self.running = False
         self.connection.disconnected_at = time.time()
+        self.status_text.flush()
         if self.conn:
             try:
                 self.conn.close()

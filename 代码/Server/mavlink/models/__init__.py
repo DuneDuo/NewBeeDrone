@@ -8,3 +8,4 @@ from .connection import Connection
 from .battery import Battery
 from .paramop import ParamOp
 from .flightstate import FlightState
+from .statustext import StatusText

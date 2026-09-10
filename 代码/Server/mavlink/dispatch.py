@@ -2,6 +2,7 @@ from logger import logger
 import config
 log = logger("dispatch")
 _handlers = {}
+_no_handler = set()
 def register(msg_type):
     def wrapper(func):
         _handlers[msg_type] = func
@@ -16,5 +17,6 @@ def dispatch(drone,msg):
     handler = _handlers.get(msg_type)
     if handler:
         handler(drone,msg)
-    else:
+    elif msg_type not in _no_handler:
+        _no_handler.add(msg_type)
         log.info(f"未注册的消息:{msg_type} drone_id={drone.sys_id}")

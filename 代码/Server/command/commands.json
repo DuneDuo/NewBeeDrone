@@ -1,22 +1,41 @@
 {
   "arm": {
     "cmd": "MAV_CMD_COMPONENT_ARM_DISARM",
-    "signature": [],
     "params": { "1": 1 },
-    "idempotent": true, 
-    "completion": "on_ack",
-    "timeout": 2.0
+    "idempotent": true,
+    "completion": "on_ack"
+  },
+  "disarm": {
+    "cmd": "MAV_CMD_COMPONENT_ARM_DISARM",
+    "params": { "1": 0 },
+    "idempotent": true,
+    "completion": "on_ack"
   },
   "takeoff": {
     "cmd": "MAV_CMD_NAV_TAKEOFF",
     "signature": ["alt"],
     "params": { "7": "alt" },
-    "from": "long",
     "idempotent": false,
     "completion": "on_telemetry",
-    "effect": { "state": ["takeoff", "hover"] },
-    "complete": { "state": "hover" },
+    "effect": { "mode": ["takeoff", "loiter"] },
+    "complete": { "mode": "loiter" },
     "timeout": 20,
     "max_retry": 3
+  },
+  "land": {
+    "cmd": "MAV_CMD_NAV_LAND",
+    "idempotent": false,
+    "completion": "on_telemetry",
+    "effect": { "mode": "land" },
+    "complete": { "landed_state": "on_ground" },
+    "timeout": 30
+  },
+  "rtl": {
+    "cmd": "MAV_CMD_NAV_RETURN_TO_LAUNCH",
+    "idempotent": false,
+    "completion": "on_telemetry",
+    "effect": { "mode": "rtl" },
+    "complete": { "landed_state": "on_ground" },
+    "timeout": 60
   }
 }

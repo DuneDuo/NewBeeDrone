@@ -27,7 +27,7 @@ def _param_value(v):
 _STATE_FIELDS = {"mode", "armed", "landed_state", "system_status"}
 def _make_check(obj):
     if obj is None:
-        return lambda d: True
+        return None 
     if not isinstance(obj,dict):
         raise ValueError(f"谓词格式错误{obj!r}")
     if "check" in obj:                     # 具名谓词：{"check": "arrived"}
