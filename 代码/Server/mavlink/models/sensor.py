@@ -1,4 +1,3 @@
-from pymavlink.dialects.v20.common import MAVLink_message
 SENSORS = {
     # name      bit
     'gyro':        1,          # bit0
@@ -17,7 +16,7 @@ class Sensor:
     def __init__(self):
         for name in SENSORS:
             setattr(self, name, None)
-    def update(self,msg:MAVLink_message):
+    def update(self,msg):
         present = msg.onboard_control_sensors_present #传感器存在(位掩码)
         enabled = msg.onboard_control_sensors_enabled #传感器启用
         health = msg.onboard_control_sensors_health #传感器健康

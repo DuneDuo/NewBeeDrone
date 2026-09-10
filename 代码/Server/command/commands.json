@@ -1,0 +1,22 @@
+{
+  "arm": {
+    "cmd": "MAV_CMD_COMPONENT_ARM_DISARM",
+    "signature": [],
+    "params": { "1": 1 },
+    "idempotent": true, 
+    "completion": "on_ack",
+    "timeout": 2.0
+  },
+  "takeoff": {
+    "cmd": "MAV_CMD_NAV_TAKEOFF",
+    "signature": ["alt"],
+    "params": { "7": "alt" },
+    "from": "long",
+    "idempotent": false,
+    "completion": "on_telemetry",
+    "effect": { "state": ["takeoff", "hover"] },
+    "complete": { "state": "hover" },
+    "timeout": 20,
+    "max_retry": 3
+  }
+}

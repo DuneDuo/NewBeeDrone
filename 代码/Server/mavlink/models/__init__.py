@@ -2,3 +2,9 @@ from .attitude import Attitude
 from .position import Position
 from .sensor import Sensor
 from .gps import GPS
+from .mission import Mission
+from .vfr import VFR
+from .connection import Connection
+from .battery import Battery
+from .paramop import ParamOp
+from .flightstate import FlightState

@@ -1,4 +1,3 @@
-from pymavlink.dialects.v20.common import MAVLink_message
 class Position:
     def __init__(self):
         self.vx = None

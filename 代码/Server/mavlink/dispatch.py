@@ -1,5 +1,5 @@
-from .logger import logger
-from . import config
+from logger import logger
+import config
 log = logger("dispatch")
 _handlers = {}
 def register(msg_type):
@@ -12,9 +12,9 @@ def dispatch(drone,msg):
         return
     msg_type = msg.get_type()
     if config.debug_msg:
-        log.info(f"[{msg.get_type()}]{msg.to_dict()}")
+        log.debug(f"[{msg.get_type()}]{msg.to_dict()}")
     handler = _handlers.get(msg_type)
     if handler:
         handler(drone,msg)
     else:
-        log.info(f"未注册的消息:{msg_type}")
+        log.info(f"未注册的消息:{msg_type} drone_id={drone.sys_id}")
