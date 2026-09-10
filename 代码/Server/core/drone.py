@@ -138,7 +138,7 @@ class Drone:
                         self.last_heartbeat = time.time()
                     dispatch(self,msg)
             else:
-                log.error(f"客户端主动断开, drone_id={self.sys_id}")
+                log.error(f"[{self.sys_id}]客户端主动断开")
                 break
         self.close()
 
@@ -146,7 +146,7 @@ class Drone:
         while self.running:
             now_time = time.time()
             if self.last_heartbeat is not None and now_time-self.last_heartbeat > config.heartbeat_timeout:
-                log.error(f"心跳超时 {config.heartbeat_timeout}s, drone_id={self.sys_id}")
+                log.error(f"[{self.sys_id}]心跳超时 {config.heartbeat_timeout}s")
                 self.close()
             time.sleep(config.watch_dog_interval)
 
@@ -156,10 +156,10 @@ class Drone:
                 buf = msg.pack(self.mav)
                 self.conn.send(buf)
             except OSError:
-                log.error(f"发送失败，连接中断 drone_id={self.sys_id}")
+                log.error(f"[{self.sys_id}]发送失败，连接中断")
                 self.close()
             except Exception:
-                log.exception(f"意外错误 drone_id={self.sys_id}")
+                log.exception(f"[{self.sys_id}]意外错误")
 
     def send_heartbeat(self):
         msg = self.mav.heartbeat_encode(
@@ -185,7 +185,7 @@ class Drone:
             time.sleep(1)
     def send_command_long(self,command_id,param1=0,param2=0,param3=0,param4=0,param5=0,param6=0,param7=0):
         if self.sys_id is None:
-            log.error(f"无人机未注册,无法发送指令:{command_id} drone_id={self.sys_id}")
+            log.error(f"无人机未注册,无法发送指令:{command_id}")
             return
         msg = self.mav.command_long_encode(
             self.sys_id,
@@ -201,10 +201,10 @@ class Drone:
             param7
             )
         self._send(msg)
-        log.info(f"发送指令: command={command_id} drone_id={self.sys_id}")
+        log.info(f"[{self.sys_id}]发送指令: {command_id}")
     def send_command_int(self,command_id,param1=0,param2=0,param3=0,param4=0,param5=0,param6=0,param7=0):
         if self.sys_id is None:
-            log.error(f"无人机未注册,无法发送指令:{command_id} drone_id={self.sys_id}")
+            log.error(f"无人机未注册,无法发送指令:{command_id}")
             return
         msg = self.mav.command_int_encode(
             self.sys_id,
@@ -222,7 +222,7 @@ class Drone:
             param7, # 相对起飞点高度,float
             )
         self._send(msg)
-        log.info(f"发送指令: command={command_id} drone_id={self.sys_id}")
+        log.info(f"[{self.sys_id}]发送指令: {command_id}")
 
     def _param_request_read(self,param_id):
         b=bytes(param_id,"utf-8")
@@ -246,17 +246,17 @@ class Drone:
         self._send(msg)
     def param_read(self,param_id,timeout = 3.0):
         if self.sys_id is None:
-            log.error(f"无人机未注册,无法读取参数:{param_id} drone_id={self.sys_id}")
+            log.error(f"无人机未注册,无法读取参数:{param_id}")
             return None
         if self.param.param_id is not None:
-            log.error(f"参数操作忙: {self.param.param_id} drone_id={self.sys_id}")
+            log.error(f"[{self.sys_id}]参数操作忙: {self.param.param_id}")
             return None
         self.param.event.clear()
         self.param.param_id = param_id
         self._param_request_read(param_id)
         read = self.param.event.wait(timeout)
         if not read:
-            log.error(f"ParamOp未收到返回参数 drone_id={self.sys_id}")
+            log.error(f"[{self.sys_id}]ParamOp未收到返回参数")
             self.param.param_id = None
             return None
         self.param.param_id = None
@@ -266,10 +266,10 @@ class Drone:
         return math.isclose(a, b, rel_tol=1e-5, abs_tol=1e-8)
     def param_set(self,param_id,param_value,param_type = 9,timeout = 3.0):
         if self.sys_id is None:
-            log.error(f"无人机未注册,无法设置参数:{param_id} drone_id={self.sys_id}")
+            log.error(f"无人机未注册,无法设置参数:{param_id}")
             return False
         if self.param.param_id is not None:
-            log.error(f"参数操作忙: {self.param.param_id} drone_id={self.sys_id}")
+            log.error(f"[{self.sys_id}]参数操作忙: {self.param.param_id}")
             return False
         self.param.event.clear()
         self.param.param_id = param_id
@@ -277,7 +277,7 @@ class Drone:
         self._param_set(param_id,param_value,param_type)
         read = self.param.event.wait(timeout)
         if not read:
-            log.error(f"ParamOp未收到返回参数 drone_id={self.sys_id}")
+            log.error(f"[{self.sys_id}]ParamOp未收到返回参数")
             self.param.param_id = None
             self.param.want = None
             return False
@@ -287,12 +287,13 @@ class Drone:
             if self._eq(self.param_read(param_id,timeout),param_value):
                 self.param.param_id = None
                 return True
-        log.error(f"参数设置失败:{param_id} drone_id={self.sys_id}")
+        log.error(f"[{self.sys_id}]参数设置失败:{param_id}")
         self.param.param_id = None
         self.param.want = None
         self.param.result = None
         return False
     def close(self):
+        self.cmd.abort_inflight()
         if not self.running:
             return
         log.info(f"关闭连接:drone_id={self.sys_id}")
@@ -317,13 +318,13 @@ class Drone:
         old.close()
     def _reconnect_swapping(self):
         self.swap_done.set()
-        log.info(f"换电后重连成功 drone_id={self.sys_id}")
+        log.info(f"[{self.sys_id}]换电后重连成功")
     def _reconnect_flying(self,old):
         self._inherit_telemetry(old)
-        log.warning(f"飞行中重连,等待人工决策 drone_id={self.sys_id}")
+        log.warning(f"[{self.sys_id}]飞行中重连,等待人工决策")
     def _reconnect_ground(self,old):
         self._inherit_telemetry(old)
-        log.info(f"重连成功 drone_id={self.sys_id}")
+        log.info(f"[{self.sys_id}]重连成功")
     def _inherit_telemetry(self, old):
         for name in ("state", "attitude", "position", "gps", "battery",
                      "sensor", "mission", "vfr"):

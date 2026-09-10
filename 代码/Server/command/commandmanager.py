@@ -6,8 +6,8 @@ import json
 from datetime import datetime
 from collections import deque
 from logger import logger
-from .commandspec import (loadspec,ON_ACK,ON_FINAL_ACK,ON_TELEMETRY)
-from .commandrecord import (Command,SENT,PENDING,EXECUTING,DONE,FAIL,ERROR_DENIED,ERROR_FAILED,ERROR_UNSPPORTED,ERROR_LINK_LOST,ERROR_TIMEOUT)
+from .commandspec import (loadspec,ON_TELEMETRY)
+from .commandrecord import (Command,SENT,EXECUTING,DONE,FAIL,ERROR_DENIED,ERROR_FAILED,ERROR_UNSPPORTED,ERROR_LINK_LOST,ERROR_TIMEOUT)
 from pymavlink.dialects.v20.common import (
     MAV_RESULT_ACCEPTED,
     MAV_RESULT_IN_PROGRESS,
@@ -50,7 +50,7 @@ class CommandManager:
         def command(*args):
             return self._run(spec,*args)
         command.__name__ = spec.name
-        log.info(f"创建命令:{spec.name}")
+        log.debug(f"创建命令:{spec.name}")
         return command
     def _run(self,spec,*args):
         self._check_spec(spec)
@@ -134,10 +134,13 @@ class CommandManager:
         if c.state in (DONE,FAIL):
             self._append(c)
     def _append(self,c):
-        drone_id = self.drone.sys_id or "unknown"
-        path = os.path.join(_get_run_dir(),f"{drone_id}.jsonl")
-        with open(path,"a",encoding="utf-8") as f:
-            f.write(json.dumps(self._row(c),ensure_ascii=False) + "\n")
+        try:
+            drone_id = self.drone.sys_id or "unknown"
+            path = os.path.join(_get_run_dir(),f"{drone_id}.jsonl")
+            with open(path,"a",encoding="utf-8") as f:
+                f.write(json.dumps(self._row(c),ensure_ascii=False) + "\n")
+        except Exception:
+            log.exception(f"[{drone_id}]台账写入失败[{c.run_id}]")
     def _row(self,c):
         return {
             "name": c.name,
@@ -161,6 +164,10 @@ class CommandManager:
         c.state = FAIL
         c.done_at = time.time()
         self._move_to_complete(c,f"异常:{detail}")
+    def abort_inflight(self):
+        with self.lock:
+            if self.current is not None:
+                self._abort(self.current,ERROR_LINK_LOST,"连接中断")
     def _tick(self):
         to_resend = None
         with self.lock:

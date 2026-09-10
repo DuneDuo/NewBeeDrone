@@ -61,7 +61,7 @@ def loadspec():
                 cmd = _cmd_id(dic["cmd"]),
                 signature = tuple(dic.get("signature",[])),
                 params = {int(k): _param_value(v) for k,v in dic.get("params",{}).items()},
-                form = dic.get("from","long"),
+                form = dic.get("form","long"),
                 idempotent = dic.get("idempotent", False),
                 completion = dic.get("completion", "on_ack"),
                 effect = _make_check(dic.get("effect")),
